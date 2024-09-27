@@ -1,0 +1,25 @@
+{
+  "name": "zustand-oop",
+  "version": "1.0.0",
+  "description": "",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc -w",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "class-transformer": "^0.5.1",
+    "immer": "^10.1.1",
+    "reflect-metadata": "^0.2.2",
+    "zustand": "5.0.0-rc.2"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.9",
+    "react": "^18.3.1"
+  }
+}
