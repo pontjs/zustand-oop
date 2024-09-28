@@ -1,11 +1,9 @@
 # zustand-oop
 
 <p align="center">
-  <img src="bear-oop.jpg" alt="Zustand OOP Logo" />
+  <img src="https://img.alicdn.com/imgextra/i2/O1CN011N4AN11QnfRWmTt2D_!!6000000002021-0-tps-1024-1024.jpg" alt="Zustand OOP Logo" />
 </p>
 
-[![Build Status](https://img.shields.io/github/workflow/status/your-username/zustand-oop/CI?style=flat&colorA=000000&colorB=000000)](https://github.com/your-username/zustand-oop/actions?query=workflow%3ACI)
-[![Build Size](https://img.shields.io/bundlephobia/minzip/zustand-oop?label=bundle%20size&style=flat&colorA=000000&colorB=000000)](https://bundlephobia.com/result?p=zustand-oop)
 [![Version](https://img.shields.io/npm/v/zustand-oop?style=flat&colorA=000000&colorB=000000)](https://www.npmjs.com/package/zustand-oop)
 [![Downloads](https://img.shields.io/npm/dt/zustand-oop.svg?style=flat&colorA=000000&colorB=000000)](https://www.npmjs.com/package/zustand-oop)
 
