@@ -67,8 +67,6 @@ function Controls() {
 
 ## Advanced Usage
 
-### combined store
-
 ### Combined Store
 
 Zustand OOP allows you to create complex stores by combining multiple state classes. Here's an example using a Todos application:
@@ -109,7 +107,7 @@ import { Type, immutable } from "zustand-oop";
 
 @immutable
 class TodosState {
-  // deserialize from persisted state
+  // @Type is used for deserialization from persisted state
   // if not using persist middleware, you don't need to use @Type for deserialization
   @Type(() => TodoItem)
   todos = [] as TodoItem[];
@@ -160,7 +158,7 @@ export const TodosStore = create(
 );
 ```
 
-Now that we have our Todos model set up, here are some examples of how to use it in your components:
+Here are some examples of how to use zustand-oop store in your components:
 
 ```jsx
 class TodoItemComponentProps {
@@ -305,7 +303,7 @@ export const AdvancedBearStore = create(new AdvancedBearState());
 
 ### SWR
 
-声明式请求真的很方便，zustand-oop 也支持了 SWR。以下是使用示例
+Declarative requests are truly convenient, and zustand-oop also supports SWR. Here's an example of how to use it:
 
 ```typescript
 import { createSWRAction } from 'zustand-oop';
