@@ -22,7 +22,7 @@ export class TodoItemComponentProps {
 
 export const TodoItemComponent: React.FC<TodoItemComponentProps> = React.memo(
   (props) => {
-    const [todoItem, itemActions] = TodosStore.useStore((state) =>
+    const [todoItem, todoItemActions] = TodosStore.useStore((state) =>
       state.todos?.find((todo) => todo.id === props.todo.id)
     );
 
@@ -32,21 +32,21 @@ export const TodoItemComponent: React.FC<TodoItemComponentProps> = React.memo(
           <Checkbox
             checked={todoItem.completed}
             onChange={(checked) => {
-              itemActions.setCompleted(checked);
+              todoItemActions.setCompleted(checked);
             }}
           />
           <Input
             value={props.todo?.title}
             className='ml-2'
-            onChange={itemActions.updateTodoTitle}
+            onChange={todoItemActions.updateTodoTitle}
           />
         </div>
-        <div className='todo-deadline w-[200px] flex items-center'>
+        <div className='todo-deadline w-[150px] flex items-center'>
           <DatePicker
             value={props.todo.deadline}
-            format={"YYYY-MM-DD HH"}
+            format={"YYYY-MM-DD"}
             showTime
-            onChange={itemActions.updateTodoDeadline}
+            onChange={todoItemActions.updateTodoDeadline}
           ></DatePicker>
         </div>
         <div className='sepline w-[1px] bg-[#e0e0e0] mx-2'></div>

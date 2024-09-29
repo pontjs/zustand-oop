@@ -12,7 +12,9 @@ import { IconCheck } from "@arco-design/web-react/icon";
 export class TodosRootProps {}
 
 export const TodosRoot: React.FC<TodosRootProps> = (props) => {
-  const [store, actions] = TodosStore.useStore();
+  const todos = TodosStore.useState();
+  const todosActions = TodosStore.useActions();
+
   const [createTodoVisible, setCreateTodoVisible] = React.useState(false);
 
   return (
@@ -21,11 +23,11 @@ export const TodosRoot: React.FC<TodosRootProps> = (props) => {
         <div className='flex items-center'>
           search todo:
           <Input
-            value={store.keyword}
+            value={todos.keyword}
             placeholder='input todo keyword please'
             className='w-[200px] ml-2'
             onChange={(value) => {
-              actions.setKeywords(value);
+              todosActions.setKeywords(value);
             }}
           />
         </div>
@@ -40,7 +42,7 @@ export const TodosRoot: React.FC<TodosRootProps> = (props) => {
           <Button
             className='ml-2'
             onClick={() => {
-              actions.completeAll();
+              todosActions.completeAll();
             }}
           >
             <IconCheck />
@@ -49,10 +51,10 @@ export const TodosRoot: React.FC<TodosRootProps> = (props) => {
         </div>
       </div>
       <div className='list'>
-        {store.filteredTodos.map((todo, index) => {
+        {todos.filteredTodos.map((todo, index) => {
           return (
             <TodoItemComponent
-              onDelete={actions.deleteTodo}
+              onDelete={todosActions.deleteTodo}
               className='mt-2'
               key={todo.id}
               todo={todo}
@@ -66,7 +68,7 @@ export const TodosRoot: React.FC<TodosRootProps> = (props) => {
           setCreateTodoVisible(false);
         }}
         onOk={(title) => {
-          actions.addTodo(title);
+          todosActions.addTodo(title);
           setCreateTodoVisible(false);
         }}
       />

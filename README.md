@@ -29,18 +29,22 @@ yarn add zustand-oop
 First, create a store class:
 
 ```typescript
-import { immutable, create } from 'zustand-oop';
+import { immutable, create } from "zustand-oop";
 
 @immutable
 class BearState {
   bears = 0;
 
   increasePopulation() {
-		this.bears++;
+    this.bears++;
   }
 
   removeAllBears() {
-		this.bears = 0;
+    this.bears = 0;
+  }
+
+  get hasBears() {
+    return this.bears > 0;
   }
 }
 
@@ -80,6 +84,10 @@ export class TodoItem {
   completed = false;
   deadline = moment().add(7, "days").format("YYYY-MM-DD HH:mm:ss");
 
+  get remainingTime() {
+    return moment(this.deadline).diff(moment(), "days");
+  }
+
   setCompleted(value: boolean) {
     this.completed = value;
   }
@@ -101,6 +109,8 @@ import { Type, immutable } from "zustand-oop";
 
 @immutable
 class TodosState {
+  // deserialize from persisted state
+  // if not using persist middleware, you don't need to use @Type for deserialization
   @Type(() => TodoItem)
   todos = [] as TodoItem[];
 
@@ -139,13 +149,10 @@ Finally, we create and export the `TodosStore` using zustand-oop:
 ```typescript
 export const TodosStore = create(
   devtools(
-    persist(
-      () => new TodosState(),
-      {
-        name: "todos",
-        deserializeClass: TodosState,
-      }
-    ),
+    persist(() => new TodosState(), {
+      name: "todos",
+      deserializeClass: TodosState,
+    }),
     {
       name: "todos",
     }
@@ -163,7 +170,7 @@ class TodoItemComponentProps {
 }
 
 function TodoItemComponent(props: TodoItemComponentProps) {
-	const { todo, onDelete } = props;
+  const { todo, onDelete } = props;
   const itemActions = TodosStore.useActions((state) =>
     state.todos?.find((todo) => todo.id === props.todo.id)
   );
@@ -198,7 +205,7 @@ function TodoItemComponent(props: TodoItemComponentProps) {
             onDelete(todo.id);
           }}
         >
-					delete
+          delete
         </Button>
       </div>
     </div>
@@ -258,7 +265,6 @@ function Todos() {
 }
 ```
 
-
 #### DevTools
 
 Zustand OOP works seamlessly with Redux DevTools, allowing you to inspect and debug your state changes. Here are some examples of how it looks in action:
@@ -270,7 +276,6 @@ devtools:
 todos app:
 
 ![](https://img.alicdn.com/imgextra/i3/O1CN01hjlqy71E7HOkwkclO_!!6000000000304-0-tps-726-196.jpg)
-
 
 ### Computed Properties
 
@@ -287,34 +292,59 @@ class AdvancedBearState {
   }
 
   addBear() {
-		this.bears++;
+    this.bears++;
   }
 
   addFish() {
-		this.fish++;
+    this.fish++;
   }
 }
 
 export const AdvancedBearStore = create(new AdvancedBearState());
 ```
 
-### Async Actions
+### SWR
 
-Async actions are straightforward with zustand-oop:
+声明式请求真的很方便，zustand-oop 也支持了 SWR。以下是使用示例
 
 ```typescript
-@immutable
-class AsyncBearState {
-  bears = 0;
+import { createSWRAction } from 'zustand-oop';
 
-  async fetchBears() {
-    const response = await fetch('/api/bears');
-    const bears = await response.json();
-		this.bears = bears;
+class PetStore {
+  status = ['available', 'pending', 'sold'];
+
+  setStatus(status: string[]) {
+    this.status = status;
   }
+
+  pets = createSWRAction((status) => {
+    return useSWR(`https://petstore.swagger.io/v2/pet/findByStatus?status=${status.join(',')}`)
+  });
 }
 
-export const AsyncBearStore = create(new AsyncBearState());
+export const PetStore = create(() => new PetStore());
+
+function PetList() {
+  const [petstore, actions] = PetStore.useStore();
+
+  actions.pets.useRequest(petstore.status);
+
+  return <div>
+    <div>
+      <Checkbox.Group
+        checked={petstore.status}
+        onChange={(newStatus) => {
+          actions.setStatus(newStatus);
+        }}
+      />
+    </div>
+    <Spin loading={petstore.pets.loading}>
+      {(petstore.pets.data || []).map((pet) => {
+        return <div key={pet.id}>{pet.name}</div>
+      })}
+    </Spin>
+  </div>
+}
 ```
 
 ## Middleware Support
@@ -322,7 +352,7 @@ export const AsyncBearStore = create(new AsyncBearState());
 Zustand OOP supports Zustand middleware. Here's an example using the `persist` middleware:
 
 ```typescript
-import { persist, devtools, immutable, create } from 'zustand-oop';
+import { persist, devtools, immutable, create } from "zustand-oop";
 
 @immutable
 class PersistentBearState {
@@ -335,13 +365,10 @@ class PersistentBearState {
 
 export const PersistentBearStore = create(
   devtools(
-    persist(
-      new PersistentBearState(),
-      {
-        name: "bear-storage",
-        deserializeClass: PersistentBearState,
-      }
-    ),
+    persist(new PersistentBearState(), {
+      name: "bear-storage",
+      deserializeClass: PersistentBearState,
+    }),
     { name: "bear-storage" }
   )
 );

@@ -6,9 +6,12 @@ import {
   Mutate,
   useStore as useZustandStore,
 } from "zustand";
-import React from "react";
+import React, { useRef } from "react";
 import "reflect-metadata";
 import { produce } from "immer";
+import { createZustandSWRAction, SWRAction } from "./swr";
+
+const ActionContructor = Symbol.for("ActionContructor");
 
 type ExtractState<S> = S extends {
   getState: () => infer T;
@@ -35,7 +38,7 @@ export type UseBoundStore<S extends WithReact<ReadonlyStoreApi<unknown>>> = {
   ): [U, U];
 } & S;
 export type UseBoundState<S extends WithReact<ReadonlyStoreApi<unknown>>> = {
-  (): [ExtractState<S>, ExtractState<S>];
+  (): ExtractState<S>;
   <U>(selector: (state: ExtractState<S>) => U): U;
   /**
    * @deprecated Use `createWithEqualityFn` from 'zustand/traditional'
@@ -53,6 +56,7 @@ export function createStore<
   initializer: StateCreator<T, [], Mos>
 ): {
   useStore: UseBoundStore<Mutate<StoreApi<T>, Mos>>;
+  getStore: () => StoreApi<T>;
   useActions: UseBoundState<Mutate<StoreApi<T>, Mos>>;
   useState: UseBoundState<Mutate<StoreApi<T>, Mos>>;
 };
@@ -63,6 +67,7 @@ export function createStore<
   initializer: StateCreator<T, [], Mos>
 ): {
   useStore: UseBoundStore<Mutate<StoreApi<T>, Mos>>;
+  getStore: () => StoreApi<T>;
   useActions: UseBoundState<Mutate<StoreApi<T>, Mos>>;
   useState: UseBoundState<Mutate<StoreApi<T>, Mos>>;
 };
@@ -70,58 +75,101 @@ export function createStore<S extends StoreApi<unknown>>(
   store: S
 ): {
   useStore: UseBoundStore<S>;
+  getStore: () => S;
   useActions: UseBoundState<S>;
   useState: UseBoundState<S>;
 };
 export function createStore(initializer) {
   const store = createZustandStore(initializer);
 
-  const useActions = (selector?: any) => {
-    const result = selector ? selector(store.getState()) : store.getState();
-    const actionsRef = React.useRef(buildActions(result, store, selector));
+  // 由于 State 的 Action，有可能在 Store 内部被其它方法调用，不能直接修改 State 中的 Action。
+  // 因此，需要使用 useActions 方法来获取 Action，useAction 内绑定 store 和 immerjs。
+  const useActions = (selector?: any, equalityFn?: any) => {
+    const zustandState = (useZustandStore as any)(store, selector, equalityFn);
 
-    React.useEffect(() => {
-      actionsRef.current = buildActions(
-        result,
+    const stateActions = getActions(zustandState);
+    const actionsRef = React.useRef(
+      buildActions(
+        stateActions,
         store,
         selector,
-        actionsRef.current
-      );
-    }, [result]);
-
-    return actionsRef.current;
-  };
-
-  const useState = (selector?: any, equalityFn?: any) => {
-    const useZustandState = (useZustandStore as any)(
-      store,
-      selector,
-      equalityFn
+        zustandState?.prototype?.constructor
+      )
     );
 
-    return useZustandState;
+    React.useEffect(() => {
+      if (
+        actionsRef.current?.[ActionContructor] ===
+        zustandState?.prototype?.constructor
+      ) {
+        return;
+      }
+
+      const stateActions = getActions(zustandState);
+      actionsRef.current = buildActions(
+        stateActions,
+        store,
+        selector,
+        zustandState?.prototype?.constructor
+      );
+    }, [zustandState?.prototype?.constructor]);
+
+    return actionsRef.current as any;
+  };
+
+  const _useState = (selector?: any, equalityFn?: any) => {
+    const zustandState = (useZustandStore as any)(store, selector, equalityFn);
+
+    return zustandState;
   };
 
   const useStore: any = (selector?: any, equalityFn?: any) => {
-    const actions = useActions(selector);
+    const zustandState = (useZustandStore as any)(store, selector, equalityFn);
+    const actions = useActions(selector, equalityFn);
 
-    const useState = (useZustandStore as any)(store, selector, equalityFn);
-
-    return [useState, actions];
+    return [zustandState, actions];
   };
 
-  return { useStore, useActions, useState };
+  return { useStore, getStore: () => store, useState: _useState, useActions };
 }
 
 export const create = createStore;
 
-const buildActions = (result, store, selector, preActions = {}) => {
+const getActions = (result, prevActions = {}) => {
   const propertyNames = Reflect.ownKeys(Object.getPrototypeOf(result));
   propertyNames.forEach((key) => {
     const isAction = result?.[key] && typeof result[key] === "function";
+    const isSWRAction = result?.[key] instanceof SWRAction;
 
-    if (isAction && !preActions[key]) {
-      const fn = result[key];
+    if ((isAction || isSWRAction) && !prevActions[key]) {
+      prevActions[key] = result[key];
+    }
+  });
+
+  Object.keys(result || []).forEach((key) => {
+    const value = result?.[key];
+
+    if (value instanceof SWRAction) {
+      prevActions[key] = value;
+    }
+  });
+
+  return prevActions;
+};
+
+const buildActions = (originActions, store, selector, clazz) => {
+  const propertyNames = Object.keys(originActions || {});
+  const actions = {
+    [ActionContructor]: clazz,
+  };
+
+  propertyNames.forEach((key) => {
+    const isAction =
+      originActions?.[key] && typeof originActions[key] === "function";
+    const isSWRAction = originActions?.[key] instanceof SWRAction;
+
+    if (isAction) {
+      const fn = originActions[key];
       const newFn = (...args) => {
         const resultState = produce(store.getState(), (draft) => {
           const subState = selector ? selector(draft) : draft;
@@ -131,15 +179,29 @@ const buildActions = (result, store, selector, preActions = {}) => {
           type: key,
           paylaod: {
             selector: typeof selector === "string" ? selector : selector?.name,
-            clazz: result?.prototype?.constructor?.name,
+            clazz: clazz?.name,
             method: key,
             args: args,
           },
         });
       };
-      preActions[key] = newFn;
+      actions[key] = newFn;
+    }
+
+    const _useRequest = originActions[key]?.useRequest;
+    if (isSWRAction && _useRequest) {
+      if (_useRequest) {
+        const swrActions = createZustandSWRAction(
+          selector,
+          _useRequest,
+          key,
+          store,
+          originActions[key]?.initData
+        );
+        actions[key] = swrActions;
+      }
     }
   });
 
-  return preActions;
+  return actions;
 };
